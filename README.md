@@ -12,7 +12,7 @@ Term: Spring 2024
 + Project title: 'Unveiling collegiate bliss: a comprehensive analysis of happiness among college students'
 + This project is conducted by Siyu Li
 
-+ Project summary: This report delves into the factors contributing to the happiness of college students, including graduate students, that age from 18 to 30. The aim of this project is to scrutinize the specific topics that shape students' happiness so that to help universities to develop their awareness of students' mental health.
++ Project summary: This report delves into the factors contributing to the happiness of college students, including graduate students that age from 18 to 30. The aim of this project is to scrutinize the specific topics that shape students' happiness so that to help universities to develop their awareness of students' mental health.
 
 + The questions that are going to be answered in this report are:
   i. What topics are related to college students' happiness? (A big picture of college students' happiness)
