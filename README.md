@@ -15,9 +15,9 @@ Term: Spring 2024
 + Project summary: This report delves into the factors contributing to the happiness of college students, including graduate students that age from 18 to 30. The aim of this project is to scrutinize the specific topics that shape students' happiness so that to help universities to develop their awareness of students' mental health.
 
 + The questions that are going to be answered in this report are:
-  i. What topics are related to college students' happiness? (A big picture of college students' happiness)
-  ii. What kind of happiness last longer? (By analyzing different reflection period)
-  iii. 
++   i. What topics are related to college students' happiness? (A big picture of college students' happiness)
++   ii. Will the proportion of "friends" decrease as age goes up?
++   iii. What kind of happiness last longer? (By analyzing different reflection period)   
 
 + Note: This report mainly reflects students in America since 86.11% of HappyDB crowdsourcing workers are from the United State.
 
