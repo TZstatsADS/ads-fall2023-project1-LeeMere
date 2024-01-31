@@ -9,10 +9,17 @@ This is the first and only *individual* (as opposed to *team*) this semester.
 
 Term: Spring 2024
 
-+ Projec title: Lorem ipsum dolor sit amet
++ Projec title: 'Unveiling collagisate bliss: a comprehensive analysis of happiness among college students'
 + This project is conducted by Siyu Li
 
-+ Project summary: [a short summary] Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
++ Project summary: This report delves into the factors contributing to the happiness of college students, including graduate students, that age from 18 to 30. The aim of this project is to scrutinize the specific topics that shape students' happiness so that to help universities to develop their awarness of students' mental health.
+
++ The questions that are going to be answered in this report are:
+  i. What topics are related to college students' happiness? (A big picture of college students' happiness)
+  ii. What kind of happiness last longer? (By analyzing different reflection period)
+  iii. 
+
++ Note: This report mainly reflects students in America since 86.11% of HappyDB crowdsourcing workers are from the United State.
 
 Following [suggestions](http://nicercode.github.io/blog/2013-04-05-projects/) by [RICH FITZJOHN](http://nicercode.github.io/about/#Team) (@richfitz). This folder is orgarnized as follows.
 
