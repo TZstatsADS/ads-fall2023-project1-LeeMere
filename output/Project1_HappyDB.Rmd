@@ -1,0 +1,369 @@
+---
+title:  'Unveiling collegiate bliss: a comprehensive analysis of happiness among college students'
+author: "Siyu Li"
+output:
+  html_document:
+    df_print: paged
+---
+
+![ ](../figs/happyStudent.webp)
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#### This report delves into the factors contributing to the happiness of college students, including graduate students that age from 18 to 30. The aim of this project is to scrutinize the specific topics that shape students' happiness so that to help universities to develop their awareness of students' mental health.
+
+#### HappyDB is a corpus of 100,000 crowd-sourced happy moments via Amazon's Mechanical Turk. You can read more about it on https://arxiv.org/abs/1801.07746. This report only focus on 18-30 age group.
+
+
+```{r load libraries, warning=FALSE, message=FALSE}
+library(tm)
+library(tidytext)
+library(tidyverse)
+library(DT)
+library(word2vec)
+library(dplyr)
+library(ggplot2)
+library(ggrepel)
+library(uwot)
+library(udpipe)
+library(scales)
+library(wordcloud)
+```
+
+This report is prepared with the following environmental settings.
+
+```{r}
+print(R.version)
+```
+
+
+```{r read data, warning=FALSE, message=FALSE, echo=FALSE}
+urlfile<-'https://raw.githubusercontent.com/rit-public/HappyDB/master/happydb/data/cleaned_hm.csv'
+hm_data <- read_csv(urlfile)
+```
+
+
+```{r text processing in tm,warning=FALSE, message=FALSE,echo=FALSE}
+corpus <- VCorpus(VectorSource(hm_data$cleaned_hm))%>%
+  tm_map(content_transformer(tolower))%>%
+  tm_map(removePunctuation)%>%
+  tm_map(removeNumbers)%>%
+  tm_map(removeWords, character(0))%>%
+  tm_map(stripWhitespace)
+```
+
+
+```{r stemming,warning=FALSE, message=FALSE,echo=FALSE}
+stemmed <- tm_map(corpus, stemDocument) %>%
+  tidy() %>%
+  select(text)
+```
+
+
+```{r tidy dictionary,warning=FALSE, message=FALSE,echo=FALSE}
+dict <- tidy(corpus) %>%
+  select(text) %>%
+  unnest_tokens(dictionary, text)
+```
+
+```{r stopwords,warning=FALSE, message=FALSE,echo=FALSE}
+data("stop_words")
+
+word <- c("happy","ago","yesterday","lot","today","months","month",
+          "happier","happiest","last","week","past", "day", "time")
+
+stop_words <- stop_words %>%
+  bind_rows(mutate(tibble(word), lexicon = "updated"))
+```
+
+
+```{r tidy stems with dictionary,warning=FALSE, message=FALSE,echo=FALSE}
+completed <- stemmed %>%
+  mutate(id = row_number()) %>%
+  unnest_tokens(stems, text) %>%
+  bind_cols(dict) %>%
+  anti_join(stop_words, by = c("dictionary" = "word"))
+```
+
+
+```{r stem completion, warning=FALSE, message=FALSE, echo=FALSE}
+completed <- completed %>%
+  group_by(stems) %>%
+  count(dictionary) %>%
+  mutate(word = dictionary[which.max(n)]) %>%
+  ungroup() %>%
+  select(stems, word) %>%
+  distinct() %>%
+  right_join(completed) %>%
+  select(-stems)
+```
+
+
+
+```{r reverse unnest ,warning=FALSE, message=FALSE,echo=FALSE}
+completed <- completed %>%
+  group_by(id) %>%
+  summarise(text = str_c(word, collapse = " ")) %>%
+  ungroup()
+```
+
+
+```{r cleaned hm_data, warning=FALSE, message=FALSE, echo=FALSE}
+hm_data <- hm_data %>%
+  mutate(id = row_number()) %>%
+  inner_join(completed)
+```
+
+
+```{r export data, message=FALSE,echo=FALSE}
+write_csv(hm_data, "../output/processed_moments.csv")
+```
+
+First, I process the raw data from HappyDB's website and clean data by transferring capital letters to lower, removing punctuation, numbers, short phrases, and stopwords, and saving the in $ output $ file.
+
+Next I join the processed data with 'demographic.csv' saved in $ data $ file and narrow down the data to my aimed age group.
+
+```{r data, warning=FALSE, echo=FALSE}
+demo_data <- read.csv('https://raw.githubusercontent.com/megagonlabs/HappyDB/master/happydb/data/demographic.csv')
+```
+
+```{r data joining, warning=FALSE,message=FALSE, echo=FALSE}
+# Combining two datasets on wid
+comb_data <- hm_data %>%
+  inner_join(demo_data, by = "wid") %>%
+  select(wid,
+         age,
+         gender,
+         reflection_period,
+         original_hm,
+         ground_truth_category,
+         predicted_category,
+         text) %>%
+  filter(gender %in% c("m", "f")) %>%
+  filter(reflection_period %in% c("24h", "3m")) %>%
+  mutate(reflection_period = fct_recode(reflection_period,
+                                        months_3 = "3m", hours_24 = "24h"))
+
+#selecting data with age from 18 to 30
+comb_data$age <- as.numeric(comb_data$age)
+college_student <- subset(comb_data, age >= 8 & age <=30)
+```
+
+## Question 1: What topics are related to college students' happiness? (A big picture of college students' happiness)
+
+My answer to the question "What made you happy in the past 24 hours?" could be "I traveled back to Boston which is my favorite city". However, personally, I will not count this to "happiness". For me, it is more like a relaxing or peaceful moment. I could not remember what is my last "happy moment" and feel a little confused about the definition of "happiness", so I am initially curious about the topics where other college students find their happiness.
+
+According to the original dataset, firstly, we can simply look at the summary and barplot of predicted categories of happiness.
+
+```{r summarizing frequency of topics, message=FALSE,echo=FALSE}
+college_student$predicted_category <- factor(college_student$predicted_category, level = c("achievement", "affection", "bonding", "enjoy_the_moment", "exercise", "leisure", "nature"))
+summary(college_student$predicted_category)
+```
+
+
+```{r, message=FALSE,echo=FALSE}
+college_student$predicted_category <- factor(college_student$predicted_category, level = c("achievement", "affection", "bonding", "enjoy_the_moment", "exercise", "leisure", "nature"))
+
+barplot(table(college_student[ , c("gender", "predicted_category")]),
+        beside = TRUE,
+        legend.text = TRUE,
+        ylab = "Frequence",
+        xlab = "predicted category",
+        main = "Predicted topics of happiness among college students by gender",
+        names.arg = names(table(college_student$predicted_category)),
+        width = 100,
+        col = c("steelblue", "lightcoral"))
+```
+
+It is obvious to see college students usually get happiness from their achievements. And there is no big difference of the rank of topics among different genders. An unexpecting point is that only a few students mentioned exercise, which is in conflict with a popular view says "exercise makes people happier". 
+
+However, The plot above just provides a big picture of the topics, but we hardly could see the details. To visualize what we are really interested in, the word cloud is shown as below.
+
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+bag_of_words <- college_student %>%
+  unnest_tokens(word, text)
+
+word_count <- bag_of_words %>%
+  count(word, sort = TRUE)
+```
+
+```{r, warning=FALSE,message=FALSE,echo=FALSE}
+wordcloud(word_count$word, word_count$n,
+          scale=c(5, 0.1),
+          max.words=100,
+          min.freq=1,
+          random.order=FALSE,
+          rot.per=0.3,
+          user.r.layout=T,
+          random.color=FALSE,
+          colors=brewer.pal(9, "Purples"))
+```
+
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+word_count[1:15,] %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(word,n)) +
+  geom_col() +
+  labs(title = "Word frequency in happy moments") +
+  xlab(NULL) +
+  ylab("word frequency") +
+  coord_flip()
+```
+
+
+According to the word cloud and frequency plot, it is no surprise that friends play an important role in the happiness of college students. Other words that cannot be ignored are "family", "played", and "birthday". Well, who doesn't want to play? For this aspect, universities may need to help students balance school work and rest.
+
+Additionally, it just reminds me of a research I read recently. The hypothesis says that the most lonely people are not the elderly, but the young. This is because that young people are often self-centered and tend to seek out similar people when making friends. It's no wonder why friends become the number one topic here. Therefore, for colleges who concern their students' happiness and mental health could provide more group activities and opportunity for students to make more friends.
+
+Back to the topic of friends, if the statement is true, will the proportion of friends gradually decrease with age? And here becomes my second question.
+
+## Question 2: Will the proportion of "friends" decrease as age goes up?
+```{r, warning=FALSE, message=FALSE,echo=FALSE}
+college_student %>%
+  filter(grepl("\\bfriend\\b", text, ignore.case = TRUE)) %>%
+  group_by(age) %>%
+  summarise(count = n()) %>%
+  ggplot(aes(x = age, y = count, group = 1)) +
+  geom_line(linewidth = 1) +
+  geom_point(linewidth = 2) +
+  labs(title = "Relationship between age and demand of friendship for happyniess",
+       x = "Age",
+       y = "Count of 'friend") + 
+  theme_minimal()
+```
+
+It looks like our data does not support the hypothesis, but the downward trend at the end of this plot aroused my curiosity. And the completed plot is as below:
+
+```{r, warning=FALSE, message=FALSE,echo=FALSE}
+comb_data %>%
+  filter(grepl("\\bfriend\\b", text, ignore.case = TRUE)) %>%
+  group_by(age) %>%
+  summarise(count = n()) %>%
+  ggplot(aes(x = age, y = count, group = 1)) +
+  geom_line(linewidth = 1) +
+  geom_point(linewidth = 2) +
+  labs(title = "Relationship between age and demand of friendship for happyniess",
+       x = "Age",
+       y = "Count of 'friend") + 
+  theme_minimal() +
+  xlim(0,100)
+```
+
+It seems that I was right :). So, college students, if you are depressed on your friendship, your worries will disappear gradually, although friends do make us happy at the current stage.
+
+On the other hand, for college students who mention friend in their happy moments, what do they enjoy the most with their friends? I choose the answers only include "friend" and then plot the words frequency. It shows that "birthday", "school",and "party" are the top three relative events with "friend".
+
+```{r, warning=FALSE, message=FALSE,echo=FALSE}
+bag_of_words_fr <- college_student %>%
+  filter(grepl("\\bfriend\\b", text, ignore.case = TRUE)) %>%
+  unnest_tokens(word, text)
+
+word_count_fr <- bag_of_words_fr %>%
+  count(word, sort = TRUE)
+```
+
+```{r, warning=FALSE, message=FALSE,echo=FALSE}
+word_count_fr[3:15,] %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(word,n)) +
+  geom_col() +
+  labs(title = "Word frequency in happy moments with friends") +
+  xlab(NULL) +
+  ylab("word frequency") +
+  coord_flip()
+```
+
+
+
+## Question 3: What kind of happiness last longer? (By analyzing different reflection period)
+
+From the original data, I also find that there are two different reflection periods: 24 hours and 3 months. So, I try to look at another two word clouds based on each reflection period to find out under each reflection period, which topic is mentioned the most, and to answer the question that what kind of happiness last longer.
+
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+data_24hr <- college_student[college_student$reflection_period=="hours_24",]
+data_3m <- college_student[college_student$reflection_period=="months_3",]
+```
+
+### 24hr group:
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+words_24hr <- data_24hr %>%
+  unnest_tokens(word, text)
+
+word_count_24hr <- words_24hr %>%
+  count(word, sort = TRUE)
+```
+
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+wordcloud(word_count_24hr$word, word_count_24hr$n,
+          scale=c(5, 0.1),
+          max.words=100,
+          min.freq=1,
+          random.order=FALSE,
+          rot.per=0.3,
+          user.r.layout=T,
+          random.color=FALSE,
+           colors=brewer.pal(9, "Blues"))
+```
+
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+word_count_24hr[1:15,] %>%
+      mutate(word = reorder(word, n)) %>%
+      ggplot(aes(word, n)) +
+      geom_col() +
+      xlab(NULL) +
+      ylab("Word Frequency")+
+      coord_flip()
+```
+
+
+
+### 3_months group:
+
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+words_3m <- data_3m %>%
+  unnest_tokens(word, text)
+
+word_count_3m <- words_3m %>%
+  count(word, sort = TRUE)
+```
+
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+wordcloud(word_count_3m$word, word_count_3m$n,
+          scale=c(5, 0.1),
+          max.words=100,
+          min.freq=1,
+          random.order=FALSE,
+          rot.per=0.3,
+          user.r.layout=T,
+          random.color=FALSE,
+           colors=brewer.pal(9, "Oranges"))
+```
+
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+word_count_3m[1:15,] %>%
+      mutate(word = reorder(word, n)) %>%
+      ggplot(aes(word, n)) +
+      geom_col() +
+      xlab(NULL) +
+      ylab("Word Frequency")+
+      coord_flip()
+```
+
+According to the results above, we observe that "friend" is still the most important part for both reflection periods. However, in a short period of time, college students are more like to discuss happiness from entertainments as they commonly use verbs like "played", "watched", and "enjoyed". As for a longer reflection time, they tend to remember their families, jobs, and birthday. Of course, it is not correct to think that things like families or jobs are truly make college students happier than playing games or enjoying dinner. 
+
+I believe the weight of happiness does not count by how long it lasts, but we can still make a conclusion like "enjoying the moment while making sure you are on your way to succeed".
+
+![ ](../figs/friends.jpg)
+
+## Conclusions
+
+1. Most college students find they are happy in their achievement, only a few of them think exercise makes them happy.
+
+2. Friends play a significant role in college students' happiness, although the proportion of friendship in happiness will decrease after the age of 25.
+
+3. College students are more willing to talk about entertainments like dinner or game that bring happiness in life; on the other hand, they tend to mention family and achievements when reflecting on the past 3 months.
+
+
